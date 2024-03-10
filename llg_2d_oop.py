@@ -77,6 +77,8 @@ class llg2_solver:
         return u
     
     def demag_pot(self):
+        self.A_p = fen.assemble(self.a)
+        self.b_p = fen.assemble(self.L)
         #self.pot = fen.Function(self.FS_1d)
         self.pot.vector()[:] = self.phi_prev.vector()
         U = self.pot.vector()
@@ -170,26 +172,32 @@ class llg2_solver:
         E1 = -sp.diff(f_expr,x)
         E1 = (E1.subs([(x,d*x),(y,d*y),(z,d*z),(x0,d*x0),(y0,d*y0),(x,xx),(y,yy)])/U0*r0)
         dE1_dz = sp.diff(E1,z)
-        dE1_dy = sp.diff(E1,y)
+        dE1_dy = sp.diff(E1,yy)
+        dE1_dx = sp.diff(E1,xx)
         E1 = E1.subs([(z,0)])
         dE1_dz = dE1_dz.subs([(z,0)])
         dE1_dy = dE1_dy.subs([(z,0)])
+        dE1_dx = dE1_dx.subs([(z,0)])
 
         E2 = -sp.diff(f_expr,y)
         E2 = (E2.subs([(x,d*x),(y,d*y),(z,d*z),(x0,d*x0),(y0,d*y0),(x,xx),(y,yy)])/U0*r0)
         dE2_dz = sp.diff(E2,z)
-        dE2_dy = sp.diff(E2,y)
+        dE2_dy = sp.diff(E2,yy)
+        dE2_dx = sp.diff(E2,xx)
         E2 = E2.subs([(z,0)])
         dE2_dz = dE2_dz.subs([(z,0)])
         dE2_dy = dE2_dy.subs([(z,0)])
+        dE2_dx = dE2_dx.subs([(z,0)])
 
         E3 = -sp.diff(f_expr,z)
         E3 = (E3.subs([(x,d*x),(y,d*y),(z,d*z),(x0,d*x0),(y0,d*y0),(x,xx),(y,yy)])/U0*r0)
         dE3_dz = sp.diff(E3,z)
-        dE3_dy = sp.diff(E3,y)
+        dE3_dy = sp.diff(E3,yy)
+        dE3_dx = sp.diff(E3,xx)
         E3 = E3.subs([(z,0)])
         dE3_dz = dE3_dz.subs([(z,0)])
         dE3_dy = dE3_dy.subs([(z,0)])
+        dE3_dx = dE3_dx.subs([(z,0)])
 
         E1_c=sp.ccode(E1)
         E2_c=sp.ccode(E2)
@@ -203,6 +211,10 @@ class llg2_solver:
         dE2_dy_c = sp.ccode(dE2_dy)
         dE3_dy_c = sp.ccode(dE3_dy)
         
+        dE1_dx_c = sp.ccode(dE1_dx)
+        dE2_dx_c = sp.ccode(dE2_dx)
+        dE3_dx_c = sp.ccode(dE3_dx)
+        
         
         # e1 = fen.Expression((E1_c), degree = 2, U0 = UU0, d = self.dw_width, r0 = rr0, x0 = xx0, y0 = yy0)   
         # e2 = fen.Expression((E2_c), degree = 2, U0 = UU0, d = self.dw_width, r0 = rr0, x0 = xx0, y0 = yy0)
@@ -215,6 +227,9 @@ class llg2_solver:
         
         dedy_v = fen.Expression((dE1_dy_c, dE2_dy_c, dE3_dy_c), degree = 2, U0 = UU0, d = self.dw_width, r0 = rr0, x0 = xx0, y0 = yy0)
         self.dedy_v = fen.project(dedy_v, self.FS)
+        
+        dedx_v = fen.Expression((dE1_dx_c, dE2_dx_c, dE3_dx_c), degree = 2, U0 = UU0, d = self.dw_width, r0 = rr0, x0 = xx0, y0 = yy0)
+        self.dedx_v = fen.project(dedx_v, self.FS)
         
         print("ME parameter p = ", self.p)
     
@@ -300,10 +315,11 @@ class llg2_solver:
         e1, e2, e3 = fen.split(self.e_v)
         dedz_1, dedz_2, dedz_3 = fen.split(self.dedz_v)
         dedy_1, dedy_2, dedy_3 = fen.split(self.dedy_v)
+        dedx_1, dedx_2, dedx_3 = fen.split(self.dedx_v)
         
-        vec = fen.as_vector((-self.p*(2*e1*m1.dx(0) + 2*e2*m2.dx(0) + 2*e3*m3.dx(0) + m1*e1.dx(0) + m2*e2.dx(0) + m3*e3.dx(0) + m1*e1.dx(0) + m2*e1.dx(1) + m3*dedz_1), \
-                             -self.p*(2*e1*m1.dx(1) + 2*e2*m2.dx(1) + 2*e3*m3.dx(1) + m1*e1.dx(1) + m2*e2.dx(1) + m3*e3.dx(1) + m1*e2.dx(0) + m2*e2.dx(1) + m3*dedz_2), \
-                                  -self.p*(m1*e3.dx(0) + m2*e3.dx(1) + m3*dedz_3 + m1*dedz_1 + m2*dedz_2 + m3*dedz_3)))
+        vec = fen.as_vector((-self.p*(2*e1*m1.dx(0) + 2*e2*m2.dx(0) + 2*e3*m3.dx(0) + m1*dedx_1 + m2*dedx_2 + m3*dedx_3 + m1*dedx_1 + m2*dedy_1 + m3*dedz_1), \
+                             -self.p*(2*e1*m1.dx(1) + 2*e2*m2.dx(1) + 2*e3*m3.dx(1) + m1*dedy_1 + m2*dedy_2 + m3*dedy_3 + m1*dedx_2 + m2*dedy_2 + m3*dedz_2), \
+                                  -self.p*(m1*dedx_3 + m2*dedy_3 + m3*dedz_3 + m1*dedz_1 + m2*dedz_2 + m3*dedz_3)))
         oo = fen.Constant(0)
         m1 = variable(m1)
         m2 = variable(m2)
@@ -470,11 +486,11 @@ class llg2_solver:
         
         Fp =  - fen.dot(fen.grad(self.wp), fen.grad(self.vp))*fen.dx + F_Pi*fen.dot(m_2d, fen.grad(self.wp))*fen.dx -F_Pi*self.wp*fen.dot(m_b,n)*fen.ds
         
-        a = fen.lhs(Fp)
-        L = fen.rhs(Fp)
+        self.a = fen.lhs(Fp)
+        self.L = fen.rhs(Fp)
     
-        self.A_p = fen.assemble(a)
-        self.b_p = fen.assemble(L)
+        #self.A_p = fen.assemble(self.a)
+        #self.b_p = fen.assemble(self.L)
         #BC.apply(A,b)
         self.solver_p = fen.KrylovSolver('gmres', 'hypre_euclid') #KrylovSolver('gmres', 'ilu') #hypre_euclid
         self.solver_p.parameters["nonzero_initial_guess"] = True
@@ -528,20 +544,20 @@ class llg2_solver:
             w_hext = 0
         self.w_hext_txt[i] = w_hext
         
-        Pol1 = fen.assemble((m1*m1.dx(0) - m1*m1.dx(0))*fen.dx)/(self.Lx*self.Ly)
-        Pol2 = fen.assemble((m2*m1.dx(0) - m1*m2.dx(0))*fen.dx)/(self.Lx*self.Ly)
-        Pol3 = fen.assemble((m3*m1.dx(0) - m1*m3.dx(0))*fen.dx)/(self.Lx*self.Ly)
+        Pol1 = fen.assemble((m1*(m1.dx(0) + m2.dx(1)) - m1*m1.dx(0) - m2*m1.dx(1))*fen.dx)/(self.Lx*self.Ly)
+        Pol2 = fen.assemble((m2*(m1.dx(0) + m2.dx(1)) - m1*m2.dx(0) - m2*m2.dx(1))*fen.dx)/(self.Lx*self.Ly)
+        Pol3 = fen.assemble((m3*(m1.dx(0) + m2.dx(1)) - m1*m3.dx(0) - m2*m3.dx(1))*fen.dx)/(self.Lx*self.Ly)
         
         self.Pol1_txt[i] = Pol1
         self.Pol2_txt[i] = Pol2
         self.Pol3_txt[i] = Pol3
         
-        w_me = fen.assemble(fen.dot(self.e_v, self.m*m1.dx(0) - m1*self.m.dx(0))*fen.dx)/(self.kku*self.Lx*self.Ly)
+        self.Pol = fen.project(self.m*(m1.dx(0) + m2.dx(1)) - m1*self.m.dx(0) - m2*self.m.dx(1), self.FS)
+        
+        w_me = fen.assemble(fen.dot(self.e_v, self.Pol)*fen.dx)/(self.kku*self.Lx*self.Ly)
         self.w_me_txt[i] = w_me*(-2*self.p)
         
         self.w_tot_txt[i] = self.w_ex_txt[i] + self.w_a_txt[i] + self.w_hd_txt[i] + self.w_hext_txt[i] + self.w_me_txt[i]
-        
-        self.Pol = fen.project(self.m*m1.dx(0) - m1*self.m.dx(0), self.FS)
         
         self.m.assign(self.v)
         self.phi_prev.assign(self.pot)
@@ -560,6 +576,10 @@ class llg2_solver:
         dedy_xdmf =  fen.XDMFFile(self.route_0 + 'graphs/dedy.xdmf')
         dedy_xdmf.write(self.dedy_v)
         dedy_xdmf.close()
+        
+        dedx_xdmf =  fen.XDMFFile(self.route_0 + 'graphs/dedx.xdmf')
+        dedx_xdmf.write(self.dedx_v)
+        dedx_xdmf.close()
         
         ku_func_xdmf =  fen.XDMFFile(self.route_0 + 'graphs/ku_func.xdmf')
         ku_func_xdmf.write(self.ku_func)
@@ -616,11 +636,11 @@ class llg2_solver:
 def boundary(x, on_boundary):
     return on_boundary
 
-Lx = 30
-Ly = 30
+Lx = 20
+Ly = 20
 
-Nx = 7
-Ny = 7
+Nx = 5
+Ny = 5
 
 mesh = fen.RectangleMesh(fen.Point(-Lx/2,-Ly/2), fen.Point(Lx/2,Ly/2), int(Nx*Lx), int(Ny*Ly))
 
