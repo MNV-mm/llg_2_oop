@@ -588,7 +588,7 @@ class llg2_solver:
         m_xdmf= fen.XDMFFile(self.route_0 + "graphs/m.xdmf")
         pot_xdmf= fen.XDMFFile(self.route_0 + "graphs/pot.xdmf")
         derivative_xdmf = fen.XDMFFile(self.route_0 + "graphs/deriv.xdmf")
-        P_xdmf = fen.XDMFFile(self.route_0 + "graphs/P.xdmf")
+        #P_xdmf = fen.XDMFFile(self.route_0 + "graphs/P.xdmf")
         i = 0
         for i in range(self.N_f):
             self.solve_step(i)
@@ -597,14 +597,14 @@ class llg2_solver:
                 m_xdmf.write(self.m, self.T)
                 pot_xdmf.write(self.pot, self.T)
                 derivative_xdmf.write(self.diffr, self.T)
-                P_xdmf.write(self.Pol, self.T)
+                #P_xdmf.write(self.Pol, self.T)
             
             self.T += self.dt
             
         m_xdmf.close()
         pot_xdmf.close()
         derivative_xdmf.close()
-        P_xdmf.close()
+        #P_xdmf.close()
         
         if rank==0:
             out_txt = np.vstack((self.time_txt,
@@ -663,7 +663,7 @@ solver_1d.e_field_from_ps(yy0=2, rr0 = 0.00001, UU0=3*2*10/3/100)
 
 #solver_1d.set_h_ext(0, 0, 0) #'-0.01*1000/4*tanh(x[0]+1)'
 
-solver_1d.set_comp_params(dt = 0.001, N_f = 100, route_0 = '/media/mnv/T7/sw_new/test/')
+solver_1d.set_comp_params(dt = 0.001, N_f = 100, route_0 = '/home/mnv/llg_nl/new_res/')
 
 solver_1d.set_F()
 
